@@ -1,0 +1,790 @@
+<title>{{STATE}} Population Lens</title>
+<!--ANALYTICS-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;700;800&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* Layout: phone is one column (toggle, map, county card, chips, bars, legend, table); from 880px the map sits left and the readout right. */
+:root {
+  --bg: #fcfcfb; --ink: #0b0b0b; --ink-2: #52514e; --ink-3: #75746f;
+  --hair: #e3e2de; --raised: #ffffff; --edge: rgba(11,11,11,.16);
+  --ghost: #e5e5e2; --ghost-line: #fbfbfa; --n: #e5e3dd; --b-mid: {{A_MID_L}}; --b-deep: {{A_DEEP_L}}; --r-mid: {{B_MID_L}}; --r-deep: {{B_DEEP_L}};
+  --f-display: "Archivo", "Helvetica Neue", Arial, sans-serif;
+  --f-body: "Archivo", "Helvetica Neue", Arial, sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #1a1a19; --ink: #f0efec; --ink-2: #c3c2b7; --ink-3: #9a9990;
+    --hair: #343432; --raised: #262625; --edge: rgba(240,239,236,.2);
+    --ghost: #2c2c2a; --ghost-line: #444441; --n: #4a4a46; --b-mid: {{A_MID_D}}; --b-deep: {{A_DEEP_D}}; --r-mid: {{B_MID_D}}; --r-deep: {{B_DEEP_D}};
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #1a1a19; --ink: #f0efec; --ink-2: #c3c2b7; --ink-3: #9a9990;
+  --hair: #343432; --raised: #262625; --edge: rgba(240,239,236,.2);
+  --ghost: #2c2c2a; --ghost-line: #444441; --n: #4a4a46; --b-mid: {{A_MID_D}}; --b-deep: {{A_DEEP_D}}; --r-mid: {{B_MID_D}}; --r-deep: {{B_DEEP_D}};
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font-family: var(--f-body); font-size: 15px; line-height: 1.5;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 20px 40px;
+}
+.wrap { max-width: 1040px; margin: 0 auto; }
+header { margin-bottom: 16px; }
+.pgnav { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; column-gap: 12px; }
+.pgnav .back + .back { margin-left: auto; text-align: right; }
+@media (max-width: 400px) { .pgnav .back { font-size: 11px; letter-spacing: .03em; } }
+.back { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; margin: -10px 0 2px -8px; padding: 0 8px; color: var(--ink-2); text-decoration: none; font: 500 12px/1 var(--f-mono); letter-spacing: .06em; text-transform: uppercase; border-radius: 8px; }
+.pgl { display: contents; }
+.pgnav .pgl + .back { margin-left: 0; text-align: right; }
+button.back { background: none; border: 0; cursor: pointer; -webkit-appearance: none; appearance: none; }
+.pgb[hidden] { display: none; }
+.pgb[hidden] + a::before { content: "\2190"; }
+.pgnav .pgl .back + .back { margin-left: auto; margin-right: auto; text-align: center; }
+.pgnav .back { white-space: nowrap; }
+@media (max-width: 430px) { .pgnav { column-gap: 4px; } .pgnav .back { font-size: 10.5px; letter-spacing: .04em; padding-left: 6px; padding-right: 6px; } }
+@media (max-width: 370px) { .pgnav .back { font-size: 9.5px; letter-spacing: .02em; padding-left: 4px; padding-right: 4px; } }
+.back:hover { color: var(--ink); }
+.back:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.kicker { font: 500 11px/1 var(--f-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); margin: 0 0 10px; }
+h1 { font-family: var(--f-display); font-weight: 800; font-size: clamp(26px, 6.2vw, 42px); line-height: 1.04; letter-spacing: -.02em; margin: 0 0 10px; text-wrap: balance; }
+.dek { color: var(--ink-2); max-width: 64ch; margin: 0; text-wrap: pretty; }
+.dek b { color: var(--ink); font-weight: 700; }
+
+.controls { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 12px; margin: 14px 0 6px; }
+.seg { display: inline-flex; border: 1px solid var(--hair); border-radius: 8px; padding: 3px; gap: 2px; background: var(--bg); }
+.seg button { font: 500 15px/1 var(--f-body); color: var(--ink-2); background: transparent; border: 0; border-radius: 6px; padding: 11px 20px; cursor: pointer; min-height: 44px; }
+.seg button[aria-pressed="true"] { background: var(--ink); color: var(--bg); }
+.tog { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; color: var(--ink-2); cursor: pointer; min-height: 44px; }
+.tog input { width: 18px; height: 18px; accent-color: var(--ink); margin: 0; }
+.tog input:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.seg button:focus-visible, .chip:focus-visible, summary:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.hint { color: var(--ink-2); font-size: 14px; max-width: 62ch; margin: 0 0 14px; min-height: 2.9em; }
+@media (max-width: 879px) { .hint { min-height: 4.5em; } }
+@media (max-width: 380px) { .hint { min-height: 6em; } }
+@media (max-width: 335px) { .hint { min-height: 7.5em; } }   /* reserve 3 lines on phones so the map does not move when the hint text changes */
+
+.grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 22px; }
+@media (min-width: 880px) { .grid { grid-template-columns: minmax(0, 1.45fr) minmax(300px, 1fr); gap: 36px; align-items: start; } .side { position: sticky; top: 16px; } }
+
+.mapwrap { position: relative; width: 100%; max-width: 640px; }
+svg.map { display: block; width: 100%; height: auto; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+.cp { stroke: #fff; stroke-width: 1.2px; vector-effect: non-scaling-stroke; stroke-linejoin: round; cursor: pointer; }
+.hxl { fill: none; stroke-width: .9px; vector-effect: non-scaling-stroke; stroke-linejoin: round; pointer-events: none; }
+.sf { stroke: none; pointer-events: none; }
+.cpo { fill: none; stroke: #fff; stroke-width: 2.2px; stroke-linecap: round; stroke-linejoin: round; vector-effect: non-scaling-stroke; pointer-events: none; }
+.hlh { fill: none; stroke: var(--bg); stroke-width: 4px; stroke-linecap: round; stroke-linejoin: round; vector-effect: non-scaling-stroke; pointer-events: none; }
+.hlp { fill: none; stroke: var(--ink); stroke-width: 1.8px; stroke-linecap: round; stroke-linejoin: round; vector-effect: non-scaling-stroke; pointer-events: none; }
+/* county card: side panel on desktop, bottom sheet on phones */
+.sheet { --gl: 16px; --gr: 16px; background: var(--raised); border: 1px solid var(--hair); border-radius: 10px; margin: 0 0 14px; overflow: hidden; min-width: 0; }
+@media (max-width: 879px) {
+  .sheet { --gl: max(16px, env(safe-area-inset-left, 0px)); --gr: max(16px, env(safe-area-inset-right, 0px)); position: fixed; left: 0; right: 0; bottom: 0; z-index: 40; margin: 0; border-radius: 18px 18px 0 0; border-bottom: 0; max-height: 70vh; overflow: auto; overscroll-behavior: contain; padding-bottom: env(safe-area-inset-bottom, 0px); box-shadow: 0 -10px 40px rgba(0,0,0,.28); transform: translateY(112%); visibility: hidden; transition: transform .38s cubic-bezier(.2,.8,.2,1), visibility 0s .38s; }
+  .sheet.open { transform: none; visibility: visible; transition: transform .38s cubic-bezier(.2,.8,.2,1), visibility 0s; }
+  .sheet:not(.full) .pn-more { display: none; }
+}
+@media (min-width: 880px) { .pn-tgl, .pn-x { display: none !important; } }
+.pn-bar { height: 6px; }
+.sc-wrap { padding: 10px var(--gr) 0 var(--gl); display: grid; gap: 6px; min-width: 0; }
+.sc-row { display: flex; flex-wrap: nowrap; gap: 6px; overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; padding-bottom: 2px; }
+.sc-row::-webkit-scrollbar { display: none; }
+.sc { flex: none; display: inline-flex; align-items: center; gap: 6px; font: 600 11.5px var(--f-mono); letter-spacing: .04em; border: 1px solid var(--hair); background: none; color: var(--ink-2); border-radius: 99px; padding: 0 12px; min-height: 36px; cursor: pointer; white-space: nowrap; }
+.sc i { width: 9px; height: 9px; border-radius: 50%; flex: none; box-shadow: 0 0 0 1px color-mix(in srgb, var(--ink) 22%, transparent); }
+.sc.on { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.sc:focus-visible, .sc-rv:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.sc-sum { display: flex; align-items: center; justify-content: space-between; gap: 10px; color: var(--ink-3); font-size: 12.5px; line-height: 1.35; }
+.sc-sum b { color: var(--ink); font-weight: 700; }
+.sc-rv { flex: none; border: 1px solid var(--hair); background: none; color: var(--ink); border-radius: 99px; font: 600 11px var(--f-mono); letter-spacing: .05em; text-transform: uppercase; padding: 0 12px; min-height: 36px; cursor: pointer; }
+.pn-hd { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; padding: 12px var(--gr) 8px var(--gl); }
+.pn-n { font: 700 20px/1.15 var(--f-display); display: block; }
+.pn-c { display: block; color: var(--ink-3); font: 500 11px var(--f-mono); letter-spacing: .06em; text-transform: uppercase; margin-top: 3px; }
+.pn-r { display: flex; align-items: center; gap: 6px; flex: none; flex-wrap: wrap; justify-content: flex-end; }
+.pn-p { display: inline-block; padding: 2px 9px; border-radius: 99px; font: 600 12px var(--f-body); white-space: nowrap; }
+.pn-b { border: 1px solid var(--hair); background: none; color: var(--ink); border-radius: 99px; font: 600 11px var(--f-mono); letter-spacing: .05em; text-transform: uppercase; padding: 0 11px; min-height: 36px; cursor: pointer; }
+.pn-x { width: 36px; padding: 0; font: 600 14px var(--f-body); background: color-mix(in srgb, var(--ink) 8%, transparent); border: 0; border-radius: 50%; }
+.pn-key { padding: 2px var(--gr) 14px var(--gl); display: grid; gap: 6px; }
+.cbar { display: grid; grid-template-columns: 62px 1fr 52px; align-items: center; gap: 8px; font: 500 12px var(--f-mono); color: var(--ink-3); }
+.cbar .ctrack { display: block; height: 9px; background: color-mix(in srgb, var(--ink) 7%, transparent); border-radius: 5px; overflow: hidden; }
+.cbar .cfill { display: block; height: 100%; border-radius: 5px; }
+.cbar .v { text-align: right; color: var(--ink); }
+.pn-rel { margin-top: 4px; color: var(--ink-2); font-size: 14px; }
+.pn-rel b { font: 700 20px var(--f-display); color: var(--ink); }
+.pn-st { display: flex; flex-wrap: wrap; gap: 4px 16px; padding: 9px var(--gr) 9px var(--gl); background: color-mix(in srgb, var(--ink) 4%, transparent); border-block: 1px solid var(--hair); color: var(--ink-3); font-size: 12.5px; }
+.pn-st b { color: var(--ink); font-weight: 700; }
+.pn-t { width: calc(100% - var(--gl) - var(--gr)); min-width: 0; margin: 8px var(--gr) 14px var(--gl); border-collapse: collapse; font-size: 13px; }
+.pn-t th { font: 600 10px var(--f-mono); letter-spacing: .07em; text-transform: uppercase; color: var(--ink-3); text-align: left; padding: 4px 6px; background: none; position: static; }
+.pn-t td { padding: 7px 6px; border-top: 1px solid var(--hair); }
+.pn-t .num { text-align: right; white-space: nowrap; }
+.pn-t tr.win td { font-weight: 700; background: color-mix(in srgb, var(--ink) 4%, transparent); }
+.nm2 { display: inline-flex; gap: 7px; align-items: baseline; }
+.nm2 i { width: 9px; height: 9px; border-radius: 50%; flex: none; }
+.pn-empty { padding: 16px var(--gr) 18px var(--gl); }
+.pn-empty h2 { font: 700 18px/1.2 var(--f-display); margin: 0 0 6px; letter-spacing: 0; }
+.pn-empty p { margin: 0; color: var(--ink-2); font-size: 14px; }
+.seg button:disabled { opacity: .4; cursor: default; }
+.lensctl { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 18px; margin: 0 0 8px; }
+.lensctl[hidden] { display: none; }
+.mapwrap .lensctl { margin: 10px 0 0; }
+.seg.sm button { padding: 8px 14px; font-size: 14px; min-height: 36px; }
+svg.map.lensmode { touch-action: pan-y; cursor: grab; }   /* a vertical swipe on the map scrolls the page (it used to be trapped); a sideways drag still aims the lens, and a tap aims anywhere */
+.lring { fill: none; stroke: var(--ink); stroke-width: 1.2px; stroke-dasharray: 3 3; vector-effect: non-scaling-stroke; pointer-events: none; }
+.gp { fill: var(--ghost); stroke: var(--ghost-line); stroke-width: 1.1px; vector-effect: non-scaling-stroke; stroke-linejoin: round; pointer-events: none; }
+.gt { fill: none; stroke: var(--ink); stroke-width: 1.4px; stroke-dasharray: 4 3; vector-effect: non-scaling-stroke; stroke-linejoin: round; pointer-events: none; }
+.lab { font-family: var(--f-body); font-weight: 700; text-anchor: middle; dominant-baseline: central; pointer-events: none; }
+
+
+h2 { font: 700 13px/1.2 var(--f-body); letter-spacing: .02em; margin: 0 0 4px; }
+.sub { color: var(--ink-3); font-size: 13px; margin: 0 0 12px; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 22px; }
+.chips h3 { flex-basis: 100%; font: 500 11px/1 var(--f-mono); letter-spacing: .06em; text-transform: uppercase; color: var(--ink-3); margin: 6px 0 0; }
+.chip { font: 500 13px/1 var(--f-body); color: var(--ink); background: transparent; border: 1px solid var(--hair); border-radius: 999px; padding: 10px 12px; min-height: 40px; cursor: pointer; display: inline-flex; gap: 6px; align-items: baseline; }
+.chip b { font: 500 12px/1 var(--f-mono); color: var(--ink-2); }
+.chip[aria-pressed="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.chip[aria-pressed="true"] b { color: var(--bg); }
+
+.bars { display: grid; gap: 12px; margin: 0 0 22px; }
+.keyline { display: flex; gap: 16px; flex-wrap: wrap; font-size: 13px; color: var(--ink-2); margin: 0 0 8px; }
+.keyline span { display: inline-flex; align-items: center; gap: 6px; }
+.keyline i { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
+.brow { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 12px; align-items: end; padding: 8px 10px; margin: 0 -10px; border-radius: 8px; }
+.brow.act { background: color-mix(in srgb, var(--ink) 6%, transparent); }
+.brow .l { font-size: 14px; font-weight: 500; }
+.brow .l small { display: block; font-weight: 400; color: var(--ink-3); font-size: 12px; }
+.brow .v { font: 500 18px/1 var(--f-mono); font-variant-numeric: tabular-nums; }
+.track { grid-column: 1 / -1; display: flex; gap: 2px; height: 12px; }
+.track i { display: block; height: 100%; }
+.track i:first-child { border-radius: 4px 0 0 4px; }
+.track i:last-child { border-radius: 0 4px 4px 0; }
+.brow.votes { border-top: 1px solid var(--hair); border-radius: 0; margin-top: 2px; padding-top: 16px; }
+.legend { margin: 0 0 6px; }
+.ramp { height: 10px; border-radius: 5px; border: 1px solid var(--edge); }
+.ticks { display: flex; justify-content: space-between; font: 400 11px/1 var(--f-mono); color: var(--ink-3); margin-top: 6px; }
+
+details { margin-top: 28px; border-top: 1px solid var(--hair); padding-top: 14px; }
+summary { cursor: pointer; font-weight: 700; font-size: 14px; padding: 6px 0; }
+.tw { overflow: auto; max-height: 420px; border: 1px solid var(--hair); border-radius: 8px; margin-top: 10px; }
+table { border-collapse: collapse; width: 100%; font-size: 13px; min-width: 560px; }
+th, td { padding: 8px 12px; text-align: right; border-bottom: 1px solid var(--hair); white-space: nowrap; font-variant-numeric: tabular-nums; }
+th:first-child, td:first-child { text-align: left; }
+thead th { position: sticky; top: 0; background: var(--bg); font-weight: 700; font-size: 12px; color: var(--ink-2); }
+td.m { font-family: var(--f-mono); }
+.foot { margin-top: 28px; color: var(--ink-3); font-size: 12.5px; max-width: 80ch; }
+.foot p { margin: 0 0 8px; }
+/* swing (only present when the election config has a prior race) */
+.swctl { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 12px; margin: 0 0 8px; }
+.swctl[hidden] { display: none; }
+.swctl .lbl { font: 500 11px/1 var(--f-mono); letter-spacing: .06em; text-transform: uppercase; color: var(--ink-3); }
+.swleg[hidden], #legwin[hidden] { display: none; }
+.flip-o { fill: url(#flipHatch); stroke: none; pointer-events: none; opacity: 0; }
+.flip-sw { display: inline-block; width: 14px; height: 14px; vertical-align: -3px; margin-right: 6px; border: 1px solid var(--ink-3); background: repeating-linear-gradient(45deg, rgba(255,255,255,.95) 0 1.5px, var(--ink-3) 1.5px 4.5px); }
+.pn-sw { margin: 8px 0 0; font: 500 12.5px/1.45 var(--f-body); color: var(--ink-2); }
+.pn-sw b { font-weight: 700; }
+.pn-flip { display: inline-block; margin-left: 6px; padding: 1px 8px; border-radius: 99px; background: var(--ink); color: var(--bg); font: 600 10.5px var(--f-mono); letter-spacing: .04em; text-transform: uppercase; white-space: nowrap; }
+.pn-t.cmp th, .pn-t.cmp td { white-space: normal; }
+.pn-t.cmp { table-layout: fixed; }
+.pn-t.cmp th:first-child, .pn-t.cmp td:first-child { width: 22%; }
+.pn-cap { margin: 4px 0 0; padding: 0 6px; font: 500 11px/1.4 var(--f-mono); color: var(--ink-3); }
+.sw-note { font-size: 12.5px; color: var(--ink-3); margin: 6px 0 0; }
+/*ED_CSS*/
+</style>
+
+<div class="wrap">
+  <header>
+    <nav class="pgnav" aria-label="Elections"><span class="pgl"><button type="button" class="back pgb">&larr; Back</button><a class="back" href="../../">USA midterms</a></span><!--next--><!--/next--></nav><script>(function(){try{history.scrollRestoration="manual"}catch(e){}if(!location.hash){var u=0,z=function(){if(!u)scrollTo(0,0)};["touchstart","wheel","keydown","mousedown"].forEach(function(t){addEventListener(t,function(){u=1},{once:true,passive:true})});z();addEventListener("DOMContentLoaded",z);addEventListener("load",z);addEventListener("pageshow",function(e){if(!e.persisted)z()});[60,200,500,1000,2000].forEach(function(t){setTimeout(z,t)});var g=function(){if(!u&&scrollY>0)scrollTo(0,0)};addEventListener("scroll",g,{passive:true});setTimeout(function(){removeEventListener("scroll",g)},6000)}var b=document.querySelector(".pgb");if(!b)return;b.addEventListener("click",function(){var r=document.referrer,ok=false;try{ok=!!r&&new URL(r).origin===location.origin}catch(e){}if(ok&&history.length>1)history.back();else location.href="../../"})})()</script>
+    <p class="kicker">{{STATE}} · {{OFFICE}} · {{DATE}}</p>
+    <h1>{{STATE}}, by land and by people</h1>
+    <p class="dek" id="dek"></p>
+  </header>
+
+  <div class="controls">
+    <div class="seg" role="group" aria-label="Map view">
+      <button type="button" data-m="land" aria-pressed="true">Land</button><!--ED_BTN-->
+      <button type="button" data-m="lens" aria-pressed="false" id="bLens" disabled>Lens</button>
+      <button type="button" data-m="pop" aria-pressed="false">People</button>
+    </div>
+    <!--OUTLINE_TOG-->
+  </div>
+  <!--SWING_CTL-->
+  <p class="hint" id="hint">Tap any county to grow or shrink it in place. Lens warps the map by population; People rebuilds it with one hexagon per {{UNIT}} residents.</p>
+
+  <div class="grid">
+    <div class="mapwrap" id="mapwrap">
+      <svg class="map" id="map" role="img" aria-label="{{STATE}} county map of the {{RACE}} result. Choose People to redraw each county in proportion to its residents. A table of all counties follows."></svg>
+      <!--ED_MAP-->
+      <!-- NOTE: dormant lens control. The Magnify / Whole map toggle is permanently hidden (lensctl.hidden is forced true in uiMode).
+           It is kept in the DOM because applySize() reads #lsize [aria-pressed=true] to pick the lens mode; Whole map (data-s=2) is
+           pressed by default, so the Cartogram view is always the full warp. To bring Magnify back, show this block again. -->
+      <div class="lensctl" id="lensctl" hidden>
+        <div class="seg sm" role="group" aria-label="Lens mode" id="lsize"><button type="button" data-s="1" aria-pressed="false">Magnify</button><button type="button" data-s="2" aria-pressed="true">Whole map</button></div>
+      </div>
+    </div>
+
+    <aside class="side">
+      <aside class="sheet" id="card" aria-live="polite" aria-label="County details"></aside>
+      <!--ED_SIDE-->
+      <div class="chips" id="chips"></div>
+      <h2>Share of {{STATE}} that {{A}} won</h2>
+      <p class="sub">Same election, counted four ways.</p>
+      <div class="keyline"><span><i id="k-b"></i>{{A}}{{A_TAG}}</span><span><i id="k-r"></i>{{B}}{{B_TAG}}</span></div>
+      <div class="bars" id="bars"></div>
+      <div class="legend" id="legwin">
+        <h2>County margin</h2>
+        <div class="ramp" id="ramp"></div>
+        <div class="ticks"><span>{{B}}{{B_TAG}} +60</span><span>Even</span><span>{{A}}{{A_TAG}} +60</span></div>
+      </div>
+      <!--SWING_LEG-->
+    </aside>
+  </div>
+
+  <details>
+    <summary>All {{NCOUNTIES}} counties, largest first</summary>
+    <div class="tw"><table id="tbl">
+      <thead><tr><th>County</th><th>Residents</th><th>{{A}}{{A_TAG}}</th><th>{{B}}{{B_TAG}}</th><th>Margin</th><th>Land → people</th></tr></thead>
+      <tbody></tbody>
+    </table></div>
+  </details>
+
+  <div class="foot">
+    <p id="method"></p>
+    <p>{{SOURCE}}</p>
+  </div>
+</div>
+
+<script>
+(function () {
+  var LIVE = /*LIVE*/true;   // true: card follows the pointer over the map (no lens dragging any more); false: card changes only on tap (desktop: hover previews)
+  var h0 = location.hash.replace('#', '');
+  var D = /*DATA*/;
+  var LENS = /*LENS*/;
+  var META = /*META*/;
+  /* Visitor analytics (GoatCounter). track() does nothing unless the config sets analytics.goatcounter, which also loads count.js.
+     Events: view (Land / Lens / People / Precincts), color (winner / swing), tap (county or district name).
+     Each event path is <election id>/<kind>/<name>, so every page is counted separately. No cookies, no personal data. */
+  function track(kind, name) {
+    try { if (window.goatcounter && window.goatcounter.count) { var p = '/*TRK_ID*/' + '/' + kind + '/' + name; window.goatcounter.count({ path: p, title: p, event: true }); } } catch (e) {}
+  }
+  function dz(a) { var o = Int32Array.from(a); for (var k = 2; k < o.length; k++) o[k] += o[k - 2]; return o; }   // ring arrays ship delta-encoded
+  var C = D.counties, NS = 'http://www.w3.org/2000/svg', RM = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var totPop = 0, totLand = 0, tot = { d: 0, r: 0, popD: 0, landD: 0, cD: 0 };
+  C.forEach(function (c) { totPop += c.pop; totLand += c.landArea; tot.d += c.d; tot.r += c.r; });
+  C.forEach(function (c, i) {
+    c.i = i; c.tot = c.d + c.r; c.m = (c.d - c.r) / c.tot; c.dem = c.d > c.r;
+    c.popS = c.pop / totPop; c.landS = c.landArea / totLand; c.f = c.popS / c.landS;
+    c.R = dz(c.real); c.H = dz(c.hex); c.H2 = dz(c.hex2); c.W = dz(c.warp); c.K = c.R.length / 2;
+    if (c.dem) { tot.popD += c.pop; tot.landD += c.landS; tot.cD++; }
+    var x = 0, y = 0; c.cells.forEach(function (p) { x += p[0]; y += p[1]; }); c.hx = x / c.n; c.hy = y / c.n;
+    var rx = 0, ry = 0; for (var k = 0; k < c.K; k++) { rx += c.R[2 * k]; ry += c.R[2 * k + 1]; } c.rx = rx / c.K / 1000; c.ry = ry / c.K / 1000;
+  });
+  var PR = META.prior || null, colorMode = 0, SWCAP = 5;
+  if (PR) {
+    C.forEach(function (c) { c.ptot = c.pd + c.pr; c.sw = (c.d / c.tot - c.pd / c.ptot) * 100; c.flip = (c.d > c.r) !== (c.pd > c.pr); });
+    var asw = C.map(function (c) { return Math.abs(c.sw); }).sort(function (a, b) { return a - b; });
+    SWCAP = Math.max(2, Math.round(asw[Math.floor(.9 * (asw.length - 1))]));
+  }
+  var shares = { land: tot.landD, tile: tot.cD / C.length, pop: tot.popD / totPop, votes: tot.d / (tot.d + tot.r) };
+  var pct = function (x) { return Math.round(x * 100); };
+  var fmt = function (n) { return n.toLocaleString('en-US'); };
+  var pct1 = function (x) { return (x * 100).toFixed(x < .01 ? 2 : 1) + '%'; };
+  var fx = function (c) { return c.f >= 1 ? 'Expands ' + (c.f >= 10 ? c.f.toFixed(0) : c.f.toFixed(1)) + '×' : 'Shrinks ' + (1 / c.f >= 10 ? (1 / c.f).toFixed(0) : (1 / c.f).toFixed(1)) + '×'; };
+
+  /* ---------- color ---------- */
+  var stops;
+  function cv(n) { return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }
+  function h2r(h) { h = h.replace('#', ''); return [0, 2, 4].map(function (i) { return parseInt(h.substr(i, 2), 16); }); }
+  function mix(a, b, t) { return a.map(function (v, i) { return Math.round(v + (b[i] - v) * t); }); }
+  function readStops() { stops = { n: h2r(cv('--n')), bm: h2r(cv('--b-mid')), bd: h2r(cv('--b-deep')), rm: h2r(cv('--r-mid')), rd: h2r(cv('--r-deep')) }; }
+  function colorAt(m) { var t = Math.max(-1, Math.min(1, m / .6)), a = Math.abs(t), mid = t >= 0 ? stops.bm : stops.rm, deep = t >= 0 ? stops.bd : stops.rd; return a < .5 ? mix(stops.n, mid, a / .5) : mix(mid, deep, (a - .5) / .5); }
+  function colorT(t) { t = Math.max(-1, Math.min(1, t)); var a = Math.abs(t), mid = t >= 0 ? stops.bm : stops.rm, deep = t >= 0 ? stops.bd : stops.rd; return a < .5 ? mix(stops.n, mid, a / .5) : mix(mid, deep, (a - .5) / .5); }
+  function cfill(c) { return (PR && colorMode === 1) ? colorT(c.sw / SWCAP) : colorAt(c.m); }
+  function css(rgb) { return 'rgb(' + rgb.join(',') + ')'; }
+  function lum(rgb) { var f = rgb.map(function (v) { v /= 255; return v <= .03928 ? v / 12.92 : Math.pow((v + .055) / 1.055, 2.4); }); return .2126 * f[0] + .7152 * f[1] + .0722 * f[2]; }
+
+  /* ---------- svg ---------- */
+  var svg = document.getElementById('map'), B = D.bounds;
+  svg.setAttribute('viewBox', [B[0], B[1], B[2] - B[0], B[3] - B[1]].join(' '));
+  var LABFS = +(Math.min(12, Math.max(9, .14 * 345 / (B[2] - B[0]))) / 345 * (B[2] - B[0])).toFixed(4);   // county names: about 9 to 12 px on a phone whatever the state's size (was a fixed .14 map units, which blew up on small states like New Jersey)
+  function mk(tag, attrs, parent) { var e = document.createElementNS(NS, tag); for (var k in attrs) e.setAttribute(k, attrs[k]); if (parent) parent.appendChild(e); return e; }
+  var gSil = mk('g', {}, svg), gGhost = mk('g', {}, svg), gC = mk('g', {}, svg), gTop = mk('g', {}, svg), gLab = mk('g', {}, svg);
+  var side = D.s / Math.sqrt(3);
+  function hexPath(cells) {
+    var d = '';
+    cells.forEach(function (p) {
+      for (var k = 0; k < 6; k++) { var a = (-90 + 60 * k) * Math.PI / 180; d += (k ? 'L' : 'M') + (p[0] + side * Math.cos(a)).toFixed(3) + ',' + (p[1] + side * Math.sin(a)).toFixed(3); }
+      d += 'Z';
+    });
+    return d;
+  }
+  function ringPath(arr, K) { var d = 'M'; for (var k = 0; k < K; k++) d += (k ? 'L' : '') + (arr[2 * k] / 1000).toFixed(3) + ',' + (arr[2 * k + 1] / 1000).toFixed(3); return d + 'Z'; }
+  if (PR) {
+    var hs = D.vbW[2] / 120, hd = mk('defs', {}, svg), hp = mk('pattern', { id: 'flipHatch', patternUnits: 'userSpaceOnUse', width: hs, height: hs, patternTransform: 'rotate(45)' }, hd);
+    mk('rect', { x: 0, y: 0, width: hs * .34, height: hs, fill: '#ffffff', 'fill-opacity': .9 }, hp);
+  }
+  C.forEach(function (c) {
+    var rp = ringPath(c.R, c.K);
+    c.sf = mk('path', { 'class': 'sf', d: rp }, gGhost); c.sf.style.opacity = 0;
+    c.gp = mk('path', { 'class': 'gp', d: ringPath(c.R, c.K) }, gSil);
+    c.gt = mk('path', { 'class': 'gt', d: rp }, gTop); c.gt.style.opacity = 0;
+    c.g = mk('g', { 'class': 'county', 'data-i': c.i }, gC);
+    c.p = mk('path', { 'class': 'cp', d: rp }, c.g);
+    c.hl = mk('path', { 'class': 'hxl', d: hexPath(c.cells) }, c.g); c.hl.style.opacity = 0;
+    c.hl2 = mk('path', { 'class': 'hxl', d: hexPath(c.cells2) }, c.g); c.hl2.style.opacity = 0;
+    c.po = mk('path', { 'class': 'cpo', d: rp }, c.g); c.po.style.opacity = 0;
+    if (PR && c.flip) c.fo = mk('path', { 'class': 'flip-o', d: rp }, c.g);
+    if (c.n >= 60) { c.lb = mk('text', { 'class': 'lab', x: c.hx.toFixed(3), y: c.hy.toFixed(3), 'font-size': LABFS }, gLab); c.lb.textContent = c.name; c.lb.style.opacity = 0; }
+  });
+  var order = C.slice().sort(function (a, b) { return b.pop - a.pop; });
+  function reorder() { order.forEach(function (c) { gC.appendChild(c.g); }); }
+  reorder();
+
+  function recolor() {
+    readStops();
+    C.forEach(function (c) { var rgb = cfill(c); c.p.setAttribute('fill', css(rgb)); c.sf.setAttribute('fill', css(rgb)); c.dark = lum(rgb) < .3; var tn = css(mix(rgb, [255, 255, 255], .4)); c.hl.setAttribute('stroke', tn); c.hl2.setAttribute('stroke', tn); if (c.lb) { c.lb.setAttribute('fill', c.dark ? '#ffffff' : '#0b0b0b'); c.lb.setAttribute('stroke', c.dark ? 'rgba(0,0,0,.55)' : 'rgba(255,255,255,.7)'); c.lb.setAttribute('stroke-width', .03); c.lb.setAttribute('paint-order', 'stroke'); } });
+    var st = [], k; for (k = -1; k <= 1.001; k += .25) st.push(css(colorAt(k * .6)) + ' ' + Math.round((k + 1) * 50) + '%');
+    document.getElementById('ramp').style.background = 'linear-gradient(90deg,' + st.join(',') + ')';
+    document.getElementById('k-b').style.background = css(stops.bm);
+    document.getElementById('k-r').style.background = css(stops.rm);
+    if (PR) { var ss = [], q; for (q = -1; q <= 1.001; q += .25) ss.push(css(colorT(q)) + ' ' + Math.round((q + 1) * 50) + '%'); document.getElementById('swramp').style.background = 'linear-gradient(90deg,' + ss.join(',') + ')'; }
+    drawBars(); if (selected != null) showCard(selected);
+  }
+
+  /* ---------- morph state ---------- */
+  var n0 = C.length;
+  var SL = [];   // Land view: counties currently opened (tap order); drives the chip row on the card
+  var T = new Float32Array(n0), TT = new Float32Array(n0), FR = new Float32Array(n0), ST = new Float32Array(n0), DL = new Float32Array(n0), DR = new Float32Array(n0).fill(420);
+  var LAY = new Uint8Array(n0), WW = new Float32Array(n0), WF = new Float32Array(n0), WG = new Float32Array(n0);
+  var DUR_ALL = RM ? 1 : 800, DUR_ONE = RM ? 1 : 380, SPR = .3, raf = 0, ghostOn = true;
+  function eo(x) { return (1 - Math.pow(2, -5 * x)) / (1 - Math.pow(2, -5)); }
+  function ez(x, fwd) { return fwd ? eo(x) : 1 - eo(1 - x); }
+  function smooth(x) { x = Math.max(0, Math.min(1, x)); return x * x * (3 - 2 * x); }
+  function draw(c) {
+    var i = c.i, t = T[i], w = WW[i], R = c.R, H = c.H, H2 = c.H2, K = c.K, d = '', k, a, b;
+    if (t <= 0) d = (lens.a > 0.0005 && LF) ? warpPath(c) : ringPath(R, K);
+    else if (t >= 1 && w <= 0) d = ringPath(H, K);
+    else if (t >= 1 && w >= 1) d = ringPath(H2, K);
+    else {
+      var ta = Math.min(1, t / .5), tb = Math.max(0, (t - .5) / .5), Wr = c.W, px, py;
+      d = 'M';
+      for (k = 0; k < K; k++) {
+        a = 2 * k; b = a + 1;
+        px = R[a] + ta * (Wr[a] - R[a]) + tb * (H[a] - Wr[a]); py = R[b] + ta * (Wr[b] - R[b]) + tb * (H[b] - Wr[b]);
+        if (w > 0) { px += w * (R[a] + t * (H2[a] - R[a]) - px); py += w * (R[b] + t * (H2[b] - R[b]) - py); }
+        d += (k ? 'L' : '') + (px / 1000).toFixed(3) + ',' + (py / 1000).toFixed(3);
+      }
+      d += 'Z';
+    }
+    c.p.setAttribute('d', d); if (c.fo) c.fo.setAttribute('d', d);
+    var hv = smooth((t - .8) / .2);
+    c.hl.style.opacity = hv * (1 - w); c.hl2.style.opacity = hv * w;
+    if (hv > 0) c.po.setAttribute('d', d); c.po.style.opacity = hv;
+    c.gp.style.opacity = ghostOn ? Math.max(smooth(t * 1.6), GK) * (1 - w) : 0;
+    if (c.i === hlI) syncHL();
+    c.gt.style.opacity = Math.min(1, t * 3) * w;
+    c.sf.style.opacity = .3 * smooth(t * 2.5) * w;
+    if (c.lb) { c.lb.style.opacity = smooth((t - .75) / .25); c.lb.setAttribute('x', (c.hx + (c.cx - c.hx) * w).toFixed(3)); c.lb.setAttribute('y', (c.hy + (c.cy - c.hy) * w).toFixed(3)); }
+  }
+  function frame(now) {
+    var active = false;
+    for (var i = 0; i < C.length; i++) {
+      if (T[i] === TT[i] && WW[i] === WG[i]) continue;
+      var p = (now - ST[i]) / DR[i] * (1 + SPR) - DL[i] * SPR;
+      if (p <= 0) { active = true; continue; }
+      if (p >= 1) { T[i] = TT[i]; WW[i] = WG[i]; }
+      else { active = true; T[i] = FR[i] + (TT[i] - FR[i]) * ez(p, TT[i] >= FR[i]); WW[i] = WF[i] + (WG[i] - WF[i]) * ez(p, WG[i] >= WF[i]); }
+      draw(C[i]);
+    }
+    vbMorph();
+    raf = active ? requestAnimationFrame(frame) : 0;
+    if (!active) uiMode();
+  }
+  function go(i, target, w, dly, dur, now) { FR[i] = T[i]; TT[i] = target; WF[i] = WW[i]; WG[i] = w; ST[i] = now; DL[i] = dly; DR[i] = dur; }
+  function kick() { if (!raf) raf = requestAnimationFrame(frame); }
+  var CXY = (function () { var a = C.filter(function (c) { return c.name === META.start; })[0]; return [a.rx, a.ry]; })();
+  var maxD = Math.max.apply(null, C.map(function (c) { return Math.hypot(c.rx - CXY[0], c.ry - CXY[1]); }));
+  function setAll(v, instant) {
+    var now = performance.now();
+    LAY.fill(v);
+    C.forEach(function (c) {
+      var q = Math.hypot(c.rx - CXY[0], c.ry - CXY[1]) / maxD;
+      go(c.i, v, 0, RM || instant ? 0 : (v === 1 ? q : 1 - q), DUR_ALL, now);
+      if (instant) { T[c.i] = v; WW[c.i] = 0; }
+    });
+    setHot(null);
+    if (instant) { C.forEach(draw); vbMorph(); } else kick();
+    uiMode(); chipsSync();
+  }
+  function toggleCounty(i) {
+    var c = C[i], now = performance.now(), grow = TT[i] ? 0 : 1;
+    go(i, grow, grow ? (LAY[i] ? 0 : 1) : WW[i], 0, DUR_ONE, now);
+    track('tap', c.name);
+    if (grow) { SL.push(i); selected = i; }
+    else { var k = SL.indexOf(i); if (k > -1) SL.splice(k, 1); selected = SL.length ? SL[SL.length - 1] : i; }   // last one closed: card stays, as before
+    gC.appendChild(C[selected].g); showCard(selected); kick(); uiMode(); chipsSync();
+  }
+  function closeOne(i) {   // revert one opened county (card moves to the previous one)
+    var k = SL.indexOf(i); if (k < 0) return false;
+    go(i, 0, WW[i], 0, DUR_ONE, performance.now()); SL.splice(k, 1);
+    selected = SL.length ? SL[SL.length - 1] : null; if (selected != null) gC.appendChild(C[selected].g);
+    showCard(selected); kick(); uiMode(); chipsSync(); return true;
+  }
+  function revertAll() {   // revert every opened county and clear the card
+    var now = performance.now(); SL.forEach(function (i) { go(i, 0, WW[i], 0, DUR_ONE, now); }); SL = [];
+    selected = null; peekI = null; clearSel(); showCard(null); kick(); uiMode(); chipsSync();
+  }
+
+  /* ---------- lens ----------
+     NOTE: DORMANT CODE. The page now always runs the Whole-map lens (lens.gt === 1), because the Magnify / Whole map toggle is hidden.
+     The Magnify path is kept, not deleted: lensAim() moves the lens centre (lens.tx/ty) on pointer drag and returns early when lens.gt === 1;
+     the pointerdown/move/up handlers below set lensDrag and call lensAim; applySize() sets lens.gt from the hidden toggle (2 -> 1 whole, 1 -> 0 magnify);
+     lens.a/b/g are the lens strength, radius and whole-map blend that lensTick() eases each frame. With the toggle hidden these only run
+     to select a county under the pointer (LIVE) and never move the lens. Do not add user-facing text about dragging the lens. */
+  var view = 'land', LF = null, CK = null, NN = LENS.nx * LENS.ny, FLD = new Float32Array(2 * NN), FA = new Float32Array(2 * NN), FB = new Float32Array(2 * NN), startLens = h0 === 'lens', lensDrag = false, viewTok = 0, lensInit = false;
+  var lens = { x: 0, y: 0, tx: 0, ty: 0, a: 0, at: 0, b: 1, bt: 1, g: 0, gt: 0, raf: 0, last: 0 }, GF = null;
+  var LR = LENS.radii, vb0 = [B[0], B[1], B[2] - B[0], B[3] - B[1]];
+  function vbm() {   // box for the current morph: real -> warp -> hexes, same aspect so the map never changes height
+    var s = 0, i; for (i = 0; i < C.length; i++) s += T[i]; var t = s / C.length, ta = Math.min(1, t / .5), tb = Math.max(0, (t - .5) / .5);
+    return vb0.map(function (v, j) { return v + ta * (D.vbW[j] - v) + tb * (D.vbH[j] - D.vbW[j]); });
+  }
+  function vbMorph() { svg.setAttribute('viewBox', vbm().join(' ')); updSil(lens.a, lens.g * Math.min(1, lens.a)); }
+  var GK = 0;
+  function updSil(am, ge) {   // pale real-state silhouette + dashed real outline: shown whenever the map is away from the real shape
+    var s = 0, i; for (i = 0; i < C.length; i++) s += T[i]; var k = Math.max(smooth(2 * s / C.length), am, ge);
+    GK = k;
+    for (i = 0; i < C.length; i++) C[i].gp.style.opacity = ghostOn ? Math.max(smooth(T[i] * 1.6), k) * (1 - WW[i]) : 0;
+  }
+  var lensRing = mk('circle', { 'class': 'lring', r: LR[0], cx: 0, cy: 0 }, gTop); lensRing.style.opacity = 0;
+  var hlh = mk('path', { 'class': 'hlh' }, gTop), hlp = mk('path', { 'class': 'hlp' }, gTop);   // selected-county outline: surface halo under an ink line
+  C.forEach(function (c) {
+    var K = c.K; c.vi = new Int32Array(K); c.vfx = new Float32Array(K); c.vfy = new Float32Array(K);
+    for (var k = 0; k < K; k++) {
+      var gx = (c.R[2 * k] / 1000 - LENS.ox) / LENS.h, gy = (c.R[2 * k + 1] / 1000 - LENS.oy) / LENS.h;
+      gx = Math.max(0, Math.min(LENS.nx - 1.0001, gx)); gy = Math.max(0, Math.min(LENS.ny - 1.0001, gy));
+      var ix = Math.floor(gx), iy = Math.floor(gy);
+      c.vi[k] = iy * LENS.nx + ix; c.vfx[k] = gx - ix; c.vfy[k] = gy - iy;
+    }
+  });
+  function loadLens() {
+    var btn = document.getElementById('bLens');
+    if (!window.DecompressionStream) { btn.hidden = true; return; }
+    try {
+      var bin = atob(LENS.data), u8 = new Uint8Array(bin.length);
+      for (var i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i);
+      new Response(new Blob([u8]).stream().pipeThrough(new DecompressionStream('gzip'))).arrayBuffer().then(function (buf) {
+        var raw = new Int16Array(buf), nx = LENS.nx, ny = LENS.ny, nf = raw.length / (2 * NN), f, y, x;
+        for (f = 0; f < nf; f++) for (y = 0; y < ny; y++) { var o = f * 2 * NN + y * nx * 2; for (x = 1; x < nx; x++) { raw[o + 2 * x] += raw[o + 2 * x - 2]; raw[o + 2 * x + 1] += raw[o + 2 * x - 1]; } }
+        var nc0 = LENS.centers.length, gb = nc0 * 2 * NN; GF = new Float32Array(2 * NN); for (var gi = 0; gi < 2 * NN; gi++) GF[gi] = raw[gb + gi] / LENS.scale;
+        LF = raw; CK = new Int16Array(LENS.gx * LENS.gy).fill(-1);
+        LENS.centers.forEach(function (c, k) { CK[c[1] * LENS.gx + c[0]] = k; });
+        btn.disabled = false; if (startLens) setView('lens');
+      }).catch(function () { btn.hidden = true; });
+    } catch (e) { btn.hidden = true; }
+  }
+  function fieldInto(out, x, y, ri) {
+    var fx = (x - LENS.sx) / LENS.sp, fy = (y - LENS.sy) / LENS.sp, i0 = Math.floor(fx), j0 = Math.floor(fy), tx = fx - i0, ty = fy - j0, ks = [], ws = [], tot = 0, a, b;
+    var cand = [[i0, j0, (1 - tx) * (1 - ty)], [i0 + 1, j0, tx * (1 - ty)], [i0, j0 + 1, (1 - tx) * ty], [i0 + 1, j0 + 1, tx * ty]];
+    for (a = 0; a < 4; a++) {
+      var ci = cand[a][0], cj = cand[a][1]; if (ci < 0 || cj < 0 || ci >= LENS.gx || cj >= LENS.gy) continue;
+      var k = CK[cj * LENS.gx + ci]; if (k >= 0 && cand[a][2] > 1e-4) { ks.push(k); ws.push(cand[a][2]); tot += cand[a][2]; }
+    }
+    if (!ks.length) {
+      var best = 0, bd = 1e9; LENS.centers.forEach(function (c, k) { var d = Math.hypot(LENS.sx + c[0] * LENS.sp - x, LENS.sy + c[1] * LENS.sp - y); if (d < bd) { bd = d; best = k; } });
+      ks = [best]; ws = [1]; tot = 1;
+    }
+    var nc = LENS.centers.length, sc = 1 / LENS.scale, n2 = 2 * NN;
+    out.fill(0);
+    for (a = 0; a < ks.length; a++) { var base = (ri * nc + ks[a]) * n2, w = ws[a] / tot * sc; for (b = 0; b < n2; b++) out[b] += w * LF[base + b]; }
+  }
+  function computeField() {
+    var b = lens.b, i, n2 = 2 * NN;
+    fieldInto(FLD, lens.x, lens.y, 0);
+  }
+  function warpPath(c) {
+    var R = c.R, Wr = c.W, g = lens.g, K = c.K, nx = LENS.nx, a = lens.a, F = FLD, vi = c.vi, vfx = c.vfx, vfy = c.vfy, d = 'M', k, b, fx, fy, ux, uy;
+    for (k = 0; k < K; k++) {
+      b = vi[k] * 2; fx = vfx[k]; fy = vfy[k];
+      ux = (F[b] * (1 - fx) + F[b + 2] * fx) * (1 - fy) + (F[b + 2 * nx] * (1 - fx) + F[b + 2 * nx + 2] * fx) * fy;
+      uy = (F[b + 1] * (1 - fx) + F[b + 3] * fx) * (1 - fy) + (F[b + 2 * nx + 1] * (1 - fx) + F[b + 2 * nx + 3] * fx) * fy;
+      d += (k ? 'L' : '') + (R[2 * k] / 1000 + a * (1 - g) * ux + a * g * (Wr[2 * k] - R[2 * k]) / 1000).toFixed(3) + ',' + (R[2 * k + 1] / 1000 + a * (1 - g) * uy + a * g * (Wr[2 * k + 1] - R[2 * k + 1]) / 1000).toFixed(3);
+    }
+    return d + 'Z';
+  }
+  function lensTick(now) {
+    var dt = Math.min(60, now - (lens.last || now)); lens.last = now;
+    var kp = RM ? 1 : 1 - Math.exp(-dt / 70), ka = RM ? 1 : 1 - Math.exp(-dt / 150), kb = RM ? 1 : 1 - Math.exp(-dt / 120), kg = RM ? 1 : 1 - Math.exp(-dt / 170);
+    lens.x += (lens.tx - lens.x) * kp; lens.y += (lens.ty - lens.y) * kp; lens.a += (lens.at - lens.a) * ka; lens.b += (lens.bt - lens.b) * kb; lens.g += (lens.gt - lens.g) * kg;
+    if (Math.abs(lens.tx - lens.x) < 1e-4 && Math.abs(lens.ty - lens.y) < 1e-4) { lens.x = lens.tx; lens.y = lens.ty; }
+    if (Math.abs(lens.at - lens.a) < .002) lens.a = lens.at;
+    if (Math.abs(lens.bt - lens.b) < .002) lens.b = lens.bt;
+    if (Math.abs(lens.gt - lens.g) < .002) lens.g = lens.gt;
+    var on = lens.a > .0005 && LF;
+    if (on) computeField();
+    for (var i = 0; i < C.length; i++) { var c = C[i]; if (T[i] === 0 && TT[i] === 0) { var ld = on ? warpPath(c) : ringPath(c.R, c.K); c.p.setAttribute('d', ld); if (c.fo) c.fo.setAttribute('d', ld); } }
+    var vm = vbm(), am = Math.min(1, lens.a), ge = lens.g * am, kz = 1 + .25 * am, w = vm[2] * kz, h = vm[3] * kz, lv = [vm[0] + vm[2] / 2 - w / 2, vm[1] + vm[3] / 2 - h / 2, w, h];
+    svg.setAttribute('viewBox', lv.map(function (v, j) { return v + (D.vbW[j] - v) * ge; }).join(' '));
+    updSil(am, ge); syncHL();
+    lensRing.setAttribute('cx', lens.x.toFixed(3)); lensRing.setAttribute('cy', lens.y.toFixed(3));
+    lensRing.setAttribute('r', LR[0].toFixed(3)); lensRing.style.opacity = .6 * Math.min(1, lens.a * 3) * (1 - lens.g);
+    var moving = lens.tx !== lens.x || lens.ty !== lens.y || lens.a !== lens.at || lens.b !== lens.bt || lens.g !== lens.gt;
+    lens.raf = moving ? requestAnimationFrame(lensTick) : 0; if (!moving) lens.last = 0;
+  }
+  // "Land outlines" checkbox: shows or hides the pale real-state shape (the .gp ghost paths) behind the Cartogram and People views.
+  var olTog = document.getElementById('outline'); if (olTog) olTog.addEventListener('change', function (e) { ghostOn = e.target.checked; if (view === 'lens') lensKick(); else C.forEach(draw); });   // lens view redraws through lensTick; other views through draw()
+  function lensKick() { if (!lens.raf) lens.raf = requestAnimationFrame(lensTick); }
+  function clearSel() { C.forEach(function (c) { c.g.classList.remove('sel'); }); }
+  function selectCounty(i) { track('tap', C[i].name); clearSel(); C[i].g.classList.add('sel'); gC.appendChild(C[i].g); selected = i; showCard(i); }
+  function lensSel(i) { track('tap', C[i].name); clearSel(); reorder(); C[i].g.classList.add('sel'); gC.appendChild(C[i].g); selected = i; showCard(i); }
+  function act(i, fromChip) {
+    if (view === 'land') toggleCounty(i);
+    else if (view === 'pop') selectCounty(i);
+    else { if (fromChip) { lens.tx = C[i].cx; lens.ty = C[i].cy; lensKick(); } lensSel(i); }
+  }
+  function wholeOn() { return +document.querySelector('#lsize [aria-pressed=true]').dataset.s === 2; }
+  function toWarp() {   // hexes -> warped shapes (half way along the morph), staggered like setAll
+    var now = performance.now(); LAY.fill(0);
+    C.forEach(function (c) { var q = Math.hypot(c.rx - CXY[0], c.ry - CXY[1]) / maxD; go(c.i, .5, 0, RM ? 0 : 1 - q, DUR_ALL, now); });
+    setHot(null); kick(); uiMode(); chipsSync();
+  }
+  function toLensWhole() {   // the morph is at its warp pose: hand the shapes to the lens layer (same picture, no jump)
+    C.forEach(function (c) { T[c.i] = TT[c.i] = 0; WW[c.i] = WG[c.i] = 0; });
+    if (!lensInit) { var fu = C.filter(function (c) { return c.name === META.start; })[0]; lens.x = lens.tx = fu.cx; lens.y = lens.ty = fu.cy; lensInit = true; }
+    lens.a = lens.at = 1; lens.g = lens.gt = 1; computeField(); C.forEach(draw); lensKick(); uiMode();
+  }
+  function fromLensWhole() {   // lens layer off, counties sit at the warp pose of the morph
+    lens.a = lens.at = 0; lens.g = lens.gt = 0; C.forEach(function (c) { T[c.i] = TT[c.i] = .5; WW[c.i] = WG[c.i] = 0; draw(c); });
+    vbMorph(); lensKick();
+  }
+  function setView(m) {
+    track('view', m);
+    var tok = ++viewTok, was = view; view = m; SL = []; selected = null; clearSel(); showCard(null); hideTip();
+    svg.classList.toggle('lensmode', m === 'lens'); document.getElementById('lensctl').hidden = true;   // Magnify/Whole-map toggle is retired: the lens control stays hidden (see NOTE: dormant lens code)
+    if (m === 'lens') {
+      var settled = modeNow() === 'land', viaWarp = !settled && wholeOn() && modeNow() === 'pop';
+      if (viaWarp) { toWarp(); setTimeout(function () { if (tok !== viewTok) return; toLensWhole(); applySize(); }, RM ? 10 : 560); return uiMode(); }
+      if (!settled) setAll(0);
+      setTimeout(function () {
+        if (tok !== viewTok) return;
+        if (!lensInit) { var fu = C.filter(function (c) { return c.name === META.start; })[0]; lens.x = lens.tx = fu.cx; lens.y = lens.ty = fu.cy; lensInit = true; }
+        lens.at = 1; applySize(); uiMode();
+      }, settled ? 0 : (RM ? 10 : 560));
+    } else {
+      var direct = was === 'lens' && m === 'pop' && lens.gt === 1 && lens.g > .5;
+      if (direct) fromLensWhole(); else lens.at = 0;
+      lensKick(); if (was === 'lens') reorder();
+      setTimeout(function () { if (tok !== viewTok) return; setAll(m === 'pop' ? 1 : 0); }, was === 'lens' && !RM && !direct ? 320 : 0);
+    }
+    uiMode();
+  }
+  function applySize() {
+    var s = +document.querySelector('#lsize [aria-pressed=true]').dataset.s;
+    lens.gt = s === 2 ? 1 : 0; lensKick(); uiMode(); if (selected == null) showCard(null);
+  }
+  function cAt(x, y) { var el = document.elementFromPoint(x, y), g = el && el.closest ? el.closest('.county') : null; return g ? C[+g.dataset.i] : null; }
+  function toMap(e) { var pt = svg.createSVGPoint(); pt.x = e.clientX; pt.y = e.clientY; var m = svg.getScreenCTM(); return m ? pt.matrixTransform(m.inverse()) : null; }
+  function lensAim(e) {
+    var c0 = LIVE ? cAt(e.clientX, e.clientY) : null; if (c0 && c0.i !== selected) lensSel(c0.i);
+    if (lens.gt === 1) return;
+    var q = toMap(e); if (!q) return;
+    lens.tx = Math.max(vb0[0], Math.min(vb0[0] + vb0[2], q.x)); lens.ty = Math.max(vb0[1], Math.min(vb0[1] + vb0[3], q.y)); lensKick();
+    var c = LIVE ? cAt(e.clientX, e.clientY) : null; if (c && c.i !== selected) lensSel(c.i);
+  }
+  document.querySelectorAll('#lsize button').forEach(function (b) {
+    b.addEventListener('click', function () {
+      document.querySelectorAll('#lsize button').forEach(function (o) { o.setAttribute('aria-pressed', o === b ? 'true' : 'false'); });
+      applySize();
+    });
+  });
+  function modeNow() { var s = 0, settled = true; for (var i = 0; i < C.length; i++) { s += TT[i]; if (T[i] !== TT[i]) settled = false; } return s === 0 ? 'land' : s === C.length ? 'pop' : 'mixed'; }
+  var edOn = false;
+  function uiMode() {
+    if (edOn) return;
+    var m = view === 'lens' ? 'lens' : modeNow();
+    document.querySelectorAll('.seg:not(.sm) button:not([data-ed])').forEach(function (b) { b.setAttribute('aria-pressed', b.dataset.m === m ? 'true' : 'false'); });
+    var rows = document.querySelectorAll('.brow'); rows.forEach(function (r) { r.classList.toggle('act', (m === 'land' && r.dataset.k === 'land') || (m === 'pop' && r.dataset.k === 'pop')); });
+    document.getElementById('hint').textContent = m === 'lens' ? ('Every county sized by its residents. The pale shape is the real state.') : m === 'pop' ? 'One hexagon is about ' + fmt(D.unit) + ' residents. Tap a county for its numbers.' : m === 'mixed' ? 'Resized counties grow or shrink in place. Tap another, or use the buttons to flip them all.' : 'Tap any county to grow or shrink it in place. Lens warps the map by population; People rebuilds it with one hexagon per ' + fmt(D.unit) + ' residents.';
+    try { if (m !== 'mixed') history.replaceState(null, '', '#' + m); } catch (e) {}
+  }
+  document.querySelectorAll('.seg:not(.sm) button:not([data-ed])').forEach(function (b) { b.addEventListener('click', function () { setView(b.dataset.m); }); });
+
+  /* ---------- share bars ---------- */
+  var bl = { land: 'Land area won', tile: 'Counties won', pop: 'Residents of counties won', votes: 'Votes cast' };
+  function drawBars() {
+    var box = document.getElementById('bars'); box.textContent = '';
+    ['land', 'tile', 'pop', 'votes'].forEach(function (k) {
+      var s = shares[k], row = document.createElement('div'); row.className = 'brow' + (k === 'votes' ? ' votes' : ''); row.dataset.k = k;
+      var l = document.createElement('div'); l.className = 'l'; l.textContent = bl[k];
+      var sm = document.createElement('small'); sm.textContent = k === 'land' ? 'Counties ' + META.a + ' carried, by area' : k === 'tile' ? tot.cD + ' of ' + C.length + ' counties' : k === 'pop' ? fmt(tot.popD) + ' of ' + fmt(totPop) + ' people' : fmt(tot.d) + ' of ' + fmt(tot.d + tot.r) + ' votes';
+      l.appendChild(sm);
+      var v = document.createElement('div'); v.className = 'v'; v.textContent = (s * 100).toFixed(k === 'votes' ? 1 : 0) + '%';
+      var tr = document.createElement('div'); tr.className = 'track';
+      var a = document.createElement('i'); a.style.width = 'calc(' + (s * 100) + '% - 1px)'; a.style.background = css(stops.bm);
+      var b = document.createElement('i'); b.style.flex = '1'; b.style.background = css(stops.rm);
+      tr.appendChild(a); tr.appendChild(b); row.appendChild(l); row.appendChild(v); row.appendChild(tr); box.appendChild(row);
+    });
+    uiMode();
+  }
+
+  /* ---------- county card (bottom sheet on phones, side panel on desktop) ---------- */
+  var selected = null, hlI = null, full = false, sheet = document.getElementById('card');
+  var mqPhone = window.matchMedia('(max-width: 879px)');
+  function esc(s) { return String(s).replace(/[&<>"]/g, function (ch) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]; }); }
+  function syncHL() {
+    if (!hlh) return;
+    var d = hlI == null ? '' : C[hlI].p.getAttribute('d'); hlh.setAttribute('d', d); hlp.setAttribute('d', d);
+  }
+  function syncPad() { document.body.style.paddingBottom = (mqPhone.matches && sheet.classList.contains('open')) ? (sheet.offsetHeight + 24) + 'px' : ''; }
+  if (window.ResizeObserver) new ResizeObserver(syncPad).observe(sheet);
+  mqPhone.addEventListener('change', syncPad);
+  function barRow(label, share, mx, color) {
+    return '<div class="cbar"><span>' + label + '</span><span class="ctrack"><i class="cfill" style="width:' + Math.max(1.5, share / mx * 100).toFixed(1) + '%;background:' + color + '"></i></span><span class="v">' + pct1(share) + '</span></div>';
+  }
+  function swHTML(c) {
+    if (!PR) return '';
+    var up = c.sw >= 0, nm = up ? META.a : META.b, pn = up ? PR.a : PR.b, pw = c.pd > c.pr ? PR.a : PR.b;
+    return '<div class="pn-sw"><b style="color:' + css(up ? stops.bd : stops.rd) + '">' + (up ? '▲' : '▼') + ' ' + Math.abs(c.sw).toFixed(1) + ' pts</b> ' + esc(nm) + (nm === pn ? ' did better than in ' + esc(PR.short) : ' ran ahead of ' + esc(pn) + '’s ' + esc(PR.short) + ' share') + (c.flip ? '<span class="pn-flip">Flipped from ' + esc(pw) + '</span>' : '') + '</div>';
+  }
+  function cmpHTML(c) {
+    if (!PR) return '';
+    var a1 = c.d / c.tot * 100, b1 = c.r / c.tot * 100, a0 = c.pd / c.ptot * 100, b0 = c.pr / c.ptot * 100, m1 = a1 - b1, m0 = a0 - b0;
+    function mg(m, prior) { return (m >= 0 ? (prior ? PR.a : META.a) : (prior ? PR.b : META.b)) + ' +' + Math.abs(m).toFixed(1); }
+    function sg(v) { return (v >= 0 ? '+' : '−') + Math.abs(v).toFixed(1); }
+    return '<table class="pn-t cmp"><thead><tr><th>Two-party</th><th class="num">' + esc(META.a) + '</th><th class="num">' + esc(META.b) + '</th><th class="num">Margin</th></tr></thead><tbody>' +
+      '<tr class="win"><td>' + esc(PR.now) + '</td><td class="num">' + a1.toFixed(1) + '%</td><td class="num">' + b1.toFixed(1) + '%</td><td class="num">' + esc(mg(m1)) + '</td></tr>' +
+      '<tr><td>' + esc(PR.short) + '</td><td class="num">' + a0.toFixed(1) + '%</td><td class="num">' + b0.toFixed(1) + '%</td><td class="num">' + esc(mg(m0, true)) + '</td></tr>' +
+      '<tr><td>Change</td><td class="num">' + sg(a1 - a0) + '</td><td class="num">' + sg(b1 - b0) + '</td><td class="num">' + sg(m1 - m0) + '</td></tr></tbody></table><p class="pn-cap">' + esc(PR.short) + ' row is the ' + esc(PR.label) + ' race: ' + esc(PR.a) + ' under ' + esc(META.a) + ', ' + esc(PR.b) + ' under ' + esc(META.b) + '. ' + (PR.same && PR.same.length ? esc(PR.same.join(' and ')) + ' ran in both races, the other candidate did not.' : 'Different candidates ran in each race.') + '</p>';
+  }
+  function chipsHTML(cur) {   // Land view, 2+ counties open: one chip per county + a combined summary and Revert all
+    if (view !== 'land' || SL.length < 2) return '';
+    var L = 0, P = 0; SL.forEach(function (i) { L += C[i].landS; P += C[i].popS; });
+    return '<div class="sc-wrap"><div class="sc-row" role="group" aria-label="Open counties">' + SL.map(function (i) {
+      var c = C[i], on = i === cur;
+      return '<button type="button" class="sc' + (on ? ' on' : '') + '" data-i="' + i + '" aria-pressed="' + on + '"><i style="background:' + css(colorAt(c.m)) + '"></i>' + esc(c.name) + '</button>';
+    }).join('') + '</div><div class="sc-sum"><span>' + SL.length + ' counties hold <b>' + pct1(L) + '</b> of the land and <b>' + pct1(P) + '</b> of the people</span><button type="button" class="sc-rv">Revert all</button></div></div>';
+  }
+  function cardHTML(c) {
+    var cw = colorAt(c.m), dk = lum(cw) < .3, col = css(cw), mx = Math.max(c.landS, c.popS), lead = (c.dem ? META.a : META.b) + ' +' + Math.round(Math.abs(c.m) * 100), w = c.dem ? c.d : c.r, l = c.dem ? c.r : c.d;
+    var rows = [[META.a, c.d, c.d / c.tot, css(stops.bm)], [META.b, c.r, c.r / c.tot, css(stops.rm)]].sort(function (a, b) { return b[1] - a[1]; }).map(function (r, k) {
+      return '<tr class="' + (k ? '' : 'win') + '"><td><span class="nm2"><i style="background:' + r[3] + '"></i>' + esc(r[0]) + '</span></td><td class="num">' + fmt(r[1]) + '</td><td class="num">' + (r[2] * 100).toFixed(1) + '%</td></tr>';
+    }).join('');
+    return '<div class="pn-bar" style="background:' + col + '"></div>' + chipsHTML(c.i) +
+      '<div class="pn-hd"><div style="min-width:0"><span class="pn-n">' + esc(c.name) + ' County</span><span class="pn-c">' + fmt(c.pop) + ' residents</span></div>' +
+      '<div class="pn-r"><span class="pn-p" style="background:' + col + ';color:' + (dk ? '#fff' : '#0b0b0b') + '">' + esc(lead) + '</span>' +
+      '<button type="button" class="pn-b pn-tgl" aria-expanded="' + full + '">' + (full ? 'Less' : 'More') + '</button>' +
+      '<button type="button" class="pn-b pn-x" aria-label="Close">✕</button></div></div>' +
+      '<div class="pn-key">' + barRow('Land', c.landS, mx, 'var(--ink-3)') + barRow('People', c.popS, mx, col) + '<div class="pn-rel"><b>' + fx(c).replace(' ', '</b> ') + ' by people</div>' + swHTML(c) + '</div>' +
+      '<div class="pn-more"><div class="pn-st"><span>Residents <b>' + fmt(c.pop) + '</b></span><span>Hexagons <b>' + c.n + '</b></span><span>Land <b>' + pct1(c.landS) + '</b></span><span>People <b>' + pct1(c.popS) + '</b></span><span>Margin <b>' + fmt(w - l) + ' votes</b></span></div>' + cmpHTML(c) +
+      '<table class="pn-t"><thead><tr><th>Candidate</th><th class="num">Votes</th><th class="num">Share</th></tr></thead><tbody>' + rows + '</tbody></table></div>';
+  }
+  function emptyHTML() {
+    var lensMode = view === 'lens', whole = lens.gt === 1;
+    var h = lensMode ? 'Every county, sized by its people' : 'Tap a county';
+    var p = lensMode ? 'Each county is drawn in proportion to its residents. Hover or tap one to see how much it grew or shrank from its land area.' : 'Some counties are big on the map and small in people, others the reverse. Tap one here, on the map, or from the lists below to see how far it moves when residents decide its size.';
+    return '<div class="pn-empty"><h2>' + h + '</h2><p>' + p + '</p></div>';
+  }
+  function showCard(i) {
+    hlI = i; syncHL();
+    var open = i != null; sheet.classList.toggle('open', open); sheet.classList.toggle('full', full);
+    var ro = sheet.querySelector('.sc-row'), sx = ro ? ro.scrollLeft : 0;
+    sheet.innerHTML = open ? cardHTML(C[i]) : emptyHTML(); syncPad();
+    var rn = sheet.querySelector('.sc-row');
+    if (rn) { rn.scrollLeft = sx; var on = rn.querySelector('.sc.on'); if (on) { if (on.offsetLeft < rn.scrollLeft) rn.scrollLeft = on.offsetLeft - 4; else if (on.offsetLeft + on.offsetWidth > rn.scrollLeft + rn.clientWidth) rn.scrollLeft = on.offsetLeft + on.offsetWidth - rn.clientWidth + 4; } }
+  }
+  function ensureVisible(i) {
+    if (!mqPhone.matches) return;
+    setTimeout(function () {
+      var b = C[i].p.getBoundingClientRect(), lim = innerHeight - sheet.offsetHeight - 12, dy = Math.min(b.bottom - lim, b.top - 70);
+      if (dy > 0) window.scrollBy({ top: dy, behavior: RM ? 'auto' : 'smooth' });
+    }, 120);
+  }
+  sheet.addEventListener('click', function (e) {
+    var sc = e.target.closest('.sc'), rv = e.target.closest('.sc-rv');
+    if (rv) { track('revert', 'all'); revertAll(); return; }
+    if (sc) { var ci = +sc.dataset.i; track('chip', C[ci].name); selected = ci; gC.appendChild(C[ci].g); showCard(ci); ensureVisible(ci); return; }
+    if (e.target.closest('.pn-x')) { if (view === 'land' && selected != null && closeOne(selected)) return; selected = null; clearSel(); showCard(null); return; }
+    if (e.target.closest('.pn-tgl')) { full = !full; showCard(hlI); if (full && hlI != null) ensureVisible(hlI); }
+  });
+  var up = C.slice().sort(function (a, b) { return b.f - a.f; }).slice(0, 5), down = C.slice().sort(function (a, b) { return a.f - b.f; }).slice(0, 5);
+  var chipBox = document.getElementById('chips');
+  function chip(c, label) {
+    var b = document.createElement('button'); b.type = 'button'; b.className = 'chip'; b.dataset.i = c.i; b.setAttribute('aria-pressed', 'false');
+    b.textContent = c.name + ' '; var s = document.createElement('b'); s.textContent = label; b.appendChild(s);
+    b.addEventListener('click', function () { act(c.i, true); }); return b;
+  }
+  var h1 = document.createElement('h3'); h1.textContent = 'Biggest gains'; chipBox.appendChild(h1);
+  up.forEach(function (c) { chipBox.appendChild(chip(c, '×' + (c.f >= 10 ? c.f.toFixed(0) : c.f.toFixed(1)))); });
+  var h2 = document.createElement('h3'); h2.textContent = 'Biggest shrinks'; chipBox.appendChild(h2);
+  down.forEach(function (c) { chipBox.appendChild(chip(c, '÷' + (1 / c.f >= 10 ? (1 / c.f).toFixed(0) : (1 / c.f).toFixed(1)))); });
+  function chipsSync() { chipBox.querySelectorAll('.chip').forEach(function (b) { b.setAttribute('aria-pressed', TT[+b.dataset.i] ? 'true' : 'false'); }); }
+
+  /* ---------- pointer: lens aim, desktop hover preview, tap ---------- */
+  var peekI = null;
+  function setHot(c) { peekI = c ? c.i : null; showCard(peekI != null ? peekI : selected); }
+  function hideTip() { if (peekI != null) setHot(null); }
+  function cOf(e) { var g = e.target.closest ? e.target.closest('.county') : null; return g ? C[+g.dataset.i] : null; }
+  var dn = null;
+  svg.addEventListener('pointerdown', function (e) { dn = [e.clientX, e.clientY]; if (view !== 'lens' || !LF) return; if (e.pointerType === 'touch') { try { svg.setPointerCapture(e.pointerId); } catch (_) {} } lensDrag = true; lensAim(e); });
+  svg.addEventListener('pointerup', function (e) {
+    lensDrag = false;
+    if (!LIVE && view === 'lens' && dn && Math.hypot(e.clientX - dn[0], e.clientY - dn[1]) < 8) { var c = cAt(e.clientX, e.clientY); if (c) { lensSel(c.i); peekI = null; } }   // a tap (not a drag) picks the county
+  });
+  svg.addEventListener('pointercancel', function () { lensDrag = false; });
+  svg.addEventListener('pointermove', function (e) {
+    if (view === 'lens' && LF) {
+      if (e.pointerType !== 'touch' || lensDrag) lensAim(e);
+      if (!LIVE && e.pointerType !== 'touch') { var h = cOf(e); if (h && h.i !== peekI) setHot(h); else if (!h) hideTip(); }   // desktop: hover previews, click pins
+      return;
+    }
+    if (e.pointerType === 'touch') return;
+    var c = cOf(e); if (c && c.i !== peekI) setHot(c); else if (!c) hideTip();
+  });
+  svg.addEventListener('pointerleave', function (e) { if (e.pointerType !== 'touch') hideTip(); });
+  svg.addEventListener('click', function (e) {
+    var c = cOf(e); if (!c) return;
+    if (view === 'pop' && selected === c.i) { selected = null; clearSel(); peekI = null; showCard(null); return; }   // tap the selected county again: card off
+    act(c.i, false); peekI = null; if (view !== 'lens') ensureVisible(c.i);
+  });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') { if (view === 'land' && SL.length) { revertAll(); return; } selected = null; clearSel(); peekI = null; showCard(null); } });
+
+  /* ---------- copy + table ---------- */
+  var aW = tot.d > tot.r, W = aW ? META.a : META.b, Wf = aW ? META.af : META.bf, Lf = aW ? META.bf : META.af,
+    landW = aW ? tot.landD : 1 - tot.landD, cW = aW ? tot.cD : C.length - tot.cD, popW = aW ? tot.popD / totPop : 1 - tot.popD / totPop,
+    vW = Math.max(tot.d, tot.r) / (tot.d + tot.r) * 100, ppl = META.people || (META.state + ' residents');
+  var dek = document.getElementById('dek'), parts =
+    landW < .5 ? [
+    ['t', 'Count by land and ' + Lf + ' carried '], ['b', (C.length - cW) + ' of ' + C.length + ' counties'], ['t', ' and ' + pct(1 - landW) + '% of the area. Count by people and ' + Wf + (META.uncalled ? ' leads with ' : ' won with ')], ['b', vW.toFixed(1) + '%'], ['t', ' of the vote, because ' + pct(popW) + '% of ' + ppl + ' live in the ' + cW + ' counties ' + W + ' carried.']
+    ] : [
+    ['t', W + ' carried '], ['b', cW + ' of ' + C.length + ' counties'], ['t', ' and ' + pct(landW) + '% of the area, and ' + (META.uncalled ? 'leads with ' : 'won with ')], ['b', vW.toFixed(1) + '%'], ['t', ' of the vote. ' + pct(popW) + '% of ' + ppl + ' live in the counties ' + W + ' carried.']
+    ];
+  parts.forEach(function (p) { if (p[0] === 'b') { var b = document.createElement('b'); b.textContent = p[1]; dek.appendChild(b); } else dek.appendChild(document.createTextNode(p[1])); });
+  document.getElementById('method').textContent = 'The cartogram uses hexpack: ' + fmt(D.N) + ' hexagons (one per ' + fmt(D.unit) + ' residents, at least one per county) are laid out along the population-warped county shapes so that every county is one connected piece. ' + D.stats.kept + ' of the ' + D.stats.real + ' county borders on the real map are still shared borders here (' + pct(D.stats.kept / D.stats.real) + '%). The misses are mostly tiny rural counties with one or two hexagons, which cannot touch all of their neighbors. In Lens view the warp is a density-equalizing flow computed for each lens position, so counties stretch and compress without overlapping.';
+  var tb = document.querySelector('#tbl tbody');
+  order.forEach(function (c) {
+    var tr = document.createElement('tr');
+    [c.name, fmt(c.pop), fmt(c.d), fmt(c.r), (c.dem ? META.a + ' +' : META.b + ' +') + Math.round(Math.abs(c.m) * 100), pct1(c.landS) + ' → ' + pct1(c.popS)].forEach(function (v, i) {
+      var td = document.createElement('td'); td.textContent = v; if (i === 4) td.className = 'm'; tr.appendChild(td);
+    }); tb.appendChild(tr);
+  });
+
+  /* ---------- boot ---------- */
+  function setMode(m) {
+    colorMode = m;
+    document.getElementById('mWin').setAttribute('aria-pressed', m === 0 ? 'true' : 'false'); document.getElementById('mSw').setAttribute('aria-pressed', m === 1 ? 'true' : 'false');
+    document.getElementById('legwin').hidden = m === 1; document.getElementById('swleg').hidden = m === 0;
+    C.forEach(function (c) { if (c.fo) c.fo.style.opacity = m === 1 ? 1 : 0; });
+    recolor();
+  }
+  if (PR) { document.getElementById('mWin').addEventListener('click', function () { track('color', 'winner'); setMode(0); }); document.getElementById('mSw').addEventListener('click', function () { track('color', 'swing'); setMode(1); }); document.getElementById('swcap').textContent = SWCAP; }
+  showCard(null);
+  recolor();
+  C.forEach(draw);
+  loadLens();
+  if (h0 === 'pop' || h0 === 'people') { view = 'pop'; setAll(1, true); }
+  else uiMode();
+  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', recolor);
+  new MutationObserver(recolor).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+/*ED_JS*/
+  window.__ga = { META: META, tot: tot, totPop: totPop, lensKick: lensKick, setView: setView, lens: lens, setAll: setAll, toggle: toggleCounty, T: T, WW: WW, C: C, instant: function (v) { setAll(v, true); } };
+})();
+</script>
